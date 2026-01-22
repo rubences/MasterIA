@@ -1,8 +1,18 @@
+# Core ML/Graph
 torch
 torch-geometric
-neo4j
 numpy
 scikit-learn
+
+# Database
+neo4j
+
+# Web API
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.6.0
+
+# Utilities
 python-dotenv
 pandas
 faker
