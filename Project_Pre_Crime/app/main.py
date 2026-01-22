@@ -9,7 +9,7 @@ import logging
 
 from app.core.database import db_manager
 from app.core.ai_engine import precog_system
-from app.routers import citizens, predictions
+from app.routers import citizens, predictions, locations, crimes
 from app.models.schemas import HealthCheck
 from app.config import settings
 
@@ -77,6 +77,8 @@ app.add_middleware(
 # Registrar routers
 app.include_router(citizens.router)
 app.include_router(predictions.router)
+app.include_router(locations.router)
+app.include_router(crimes.router)
 
 # ==================== Endpoints Raíz ====================
 
@@ -122,6 +124,8 @@ async def system_info():
         "endpoints": {
             "citizens": "/citizens",
             "predictions": "/precogs",
+            "locations": "/locations",
+            "crimes": "/crimes",
             "documentation": "/docs"
         }
     }
