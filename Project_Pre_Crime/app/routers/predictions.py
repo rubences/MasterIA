@@ -1,14 +1,17 @@
 """
 Router de Predicciones: "La Sala de los Precogs"
 Endpoints para análisis de riesgo criminal en tiempo real.
+
+Arquit arquitectura:
+  Router (HTTP) → Service (Lógica Pre-Crime) → Repository (Persistencia)
 """
-from fastapi import APIRouter, HTTPException, BackgroundTasks
-from datetime import datetime
-from app.core.database import db_manager
-from app.core.ai_engine import precog_system
-from app.models.schemas import PredictionOutput, CitizenFeatureVector
-from app.config import settings
 import logging
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Query, status
+from datetime import datetime
+from app.services.prediction_service import prediction_service
+from app.services.citizen_service import citizen_service
+from app.models.schemas import PredictionOutput
+from app.config import settings
 
 logger = logging.getLogger("PredictionsRouter")
 
@@ -17,170 +20,103 @@ router = APIRouter(
     tags=["Predictions"]
 )
 
+# ==================== MAIN PREDICTION ENDPOINTS ====================
+
 @router.get("/scan/{citizen_id}", response_model=PredictionOutput)
-async def scan_citizen(citizen_id: int, background_tasks: BackgroundTasks):
+async def scan_citizen(citizen_id: int):
     """
-    ENDPOINT PRINCIPAL: Análisis Pre-Crime de un ciudadano.
+    🔮 ENDPOINT PRINCIPAL: Análisis Pre-Crime de un ciudadano.
     
-    Proceso:
-    1. Extrae contexto del ciudadano desde Neo4j (subgrafo social)
-    2. Prepara vector de características
-    3. Ejecuta inferencia con modelo GNN
-    4. Devuelve veredicto con nivel de riesgo
+    Pipeline:
+    1. Enriquecer datos del ciudadano desde Neo4j
+    2. Construir vector de características para IA
+    3. Ejecutar modelo GraphSAGE/GAT
+    4. Determinar veredicto según umbrales
+    5. Registrar predicción para auditoría
     
-    Umbrales:
-    - SAFE: < 60%
-    - WATCHLIST: 60-85%
-    - INTERVENE: > 85% (Bola Roja)
+    Verdicts:
+    - SAFE: < 60% - Sin riesgo detectado
+    - WATCHLIST: 60-85% - Monitoreo recomendado
+    - INTERVENE: > 85% - 🔴 BOLA ROJA - Acción Pre-Crime
     """
-    
-    # 1. FETCH: Obtener contexto del ciudadano desde Neo4j
-    cypher_query = """
-    MATCH (c:Citizen {id: $cid})
-    OPTIONAL MATCH (c)-[:KNOWS]-(friend:Citizen)
-    OPTIONAL MATCH (friend)-[r:COMMITTED_CRIME]->()
-    WITH c, 
-         count(distinct friend) as total_contacts,
-         count(distinct r) as criminal_contacts
-    
-    RETURN c.id as id, 
-           c.name as name, 
-           c.risk_seed as risk_seed,
-           c.job as job,
-           c.born as born,
-           criminal_contacts as criminal_degree,
-           total_contacts as social_network_size
-    """
-    
-    results = await db_manager.query(cypher_query, {"cid": citizen_id})
-    
-    if not results:
+    try:
+        # 1. Enriquecer características
+        citizen_features = await citizen_service.enrich_citizen_for_inference(citizen_id)
+        
+        if not citizen_features:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Ciudadano #{citizen_id} no encontrado en el sistema"
+            )
+        
+        # 2. INFERENCE + CLASSIFICATION + RECORDING (todo en el Service)
+        prediction = await prediction_service.predict_citizen_risk(citizen_features)
+        
+        return prediction
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en predicción: {e}", exc_info=True)
         raise HTTPException(
-            status_code=404, 
-            detail=f"Ciudadano ID {citizen_id} no encontrado en el sistema"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error durante análisis Pre-Crime"
         )
-    
-    raw_data = results[0]
-    
-    # 2. TRANSFORM: Preparar datos para el modelo
-    # Normalizar edad
-    age_normalized = None
-    if raw_data.get('born'):
-        age = settings.CURRENT_YEAR - raw_data['born']
-        age_normalized = min(age / 100.0, 1.0)
-    
-    # Mock de job_vector (en producción vendría de feature_engineering)
-    job_vector = _encode_job(raw_data.get('job'))
-    
-    features = CitizenFeatureVector(
-        id=raw_data['id'],
-        name=raw_data['name'],
-        status="ACTIVE",
-        criminal_degree=raw_data.get('criminal_degree', 0),
-        risk_seed=raw_data.get('risk_seed', 0.0),
-        job_vector=job_vector,
-        age_normalized=age_normalized
-    )
-    
-    # 3. INFERENCE: Ejecutar modelo Pre-Crime
-    ai_verdict = precog_system.predict(features)
-    probability = ai_verdict["probability"]
-    confidence = ai_verdict["confidence"]
-    
-    # 4. VERDICT: Clasificar según umbrales
-    if probability >= settings.RISK_THRESHOLD_INTERVENE:
-        verdict_label = "INTERVENE"
-        # Registrar "Bola Roja" en background
-        background_tasks.add_task(
-            _register_red_ball, 
-            citizen_id, 
-            probability, 
-            confidence
-        )
-    elif probability >= settings.RISK_THRESHOLD_WATCHLIST:
-        verdict_label = "WATCHLIST"
-    else:
-        verdict_label = "SAFE"
-    
-    logger.info(
-        f"🔮 Análisis completado: Ciudadano #{citizen_id} "
-        f"({raw_data['name']}) → {verdict_label} ({probability:.2%})"
-    )
-    
-    return PredictionOutput(
-        subject_id=citizen_id,
-        subject_name=raw_data['name'],
-        probability=probability,
-        verdict=verdict_label,
-        confidence=confidence,
-        analyzed_at=datetime.now()
-    )
 
 @router.post("/batch-scan")
-async def batch_scan(citizen_ids: list[int]):
+async def batch_scan(
+    citizen_ids: list[int] = Query(..., description="IDs de ciudadanos a analizar"),
+    max_batch: int = Query(100, ge=1, le=100, description="Máximo de ciudadanos")
+):
     """
     Análisis masivo de múltiples ciudadanos.
     Útil para escaneo de zonas de alto riesgo.
+    
+    Retorna resumen con estadísticas de verdicts.
     """
-    if len(citizen_ids) > 100:
+    if len(citizen_ids) > max_batch:
         raise HTTPException(
-            status_code=400,
-            detail="Máximo 100 ciudadanos por batch"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Máximo {max_batch} ciudadanos por batch"
         )
     
     results = []
+    
     for cid in citizen_ids:
         try:
-            # Reutilizar lógica de scan_citizen sin background tasks
-            cypher_query = """
-            MATCH (c:Citizen {id: $cid})
-            OPTIONAL MATCH (c)-[:KNOWS]-(friend)-[r:COMMITTED_CRIME]->()
-            WITH c, count(distinct r) as criminal_contacts
-            RETURN c.id as id, c.name as name, c.risk_seed as risk_seed,
-                   c.job as job, c.born as born, criminal_contacts as criminal_degree
-            """
-            data = await db_manager.query(cypher_query, {"cid": cid})
-            
-            if not data:
-                continue
-            
-            raw = data[0]
-            age_norm = None
-            if raw.get('born'):
-                age_norm = min((settings.CURRENT_YEAR - raw['born']) / 100.0, 1.0)
-            
-            features = CitizenFeatureVector(
-                id=raw['id'],
-                name=raw['name'],
-                status="ACTIVE",
-                criminal_degree=raw.get('criminal_degree', 0),
-                risk_seed=raw.get('risk_seed', 0.0),
-                job_vector=_encode_job(raw.get('job')),
-                age_normalized=age_norm
-            )
-            
-            verdict = precog_system.predict(features)
-            prob = verdict["probability"]
-            
-            results.append({
-                "citizen_id": cid,
-                "name": raw['name'],
-                "probability": prob,
-                "verdict": _get_verdict_label(prob)
-            })
-            
+            citizen_features = await citizen_service.enrich_citizen_for_inference(cid)
+            if citizen_features:
+                prediction = await prediction_service.predict_citizen_risk(citizen_features)
+                results.append({
+                    "citizen_id": cid,
+                    "verdict": prediction.verdict,
+                    "probability": prediction.probability
+                })
         except Exception as e:
-            logger.error(f"Error procesando ciudadano {cid}: {e}")
+            logger.warning(f"Saltando ciudadano {cid}: {e}")
             continue
+    
+    # Estadísticas
+    intervene_count = sum(1 for r in results if r["verdict"] == "INTERVENE")
+    watchlist_count = sum(1 for r in results if r["verdict"] == "WATCHLIST")
+    safe_count = sum(1 for r in results if r["verdict"] == "SAFE")
     
     return {
         "total_scanned": len(results),
-        "high_risk_count": sum(1 for r in results if r['probability'] >= settings.RISK_THRESHOLD_INTERVENE),
+        "verdicts": {
+            "intervene": intervene_count,
+            "watchlist": watchlist_count,
+            "safe": safe_count
+        },
         "results": results
     }
 
+# ==================== ANALYSIS ENDPOINTS ====================
+
 @router.get("/high-risk")
-async def get_high_risk_citizens(threshold: float = None):
+async def get_high_risk_citizens(
+    threshold: float = Query(None, ge=0.0, le=1.0, description="Umbral de riesgo")
+):
     """
     Lista ciudadanos de alto riesgo basándose en su risk_seed.
     Útil para priorizar análisis detallados.
@@ -188,82 +124,114 @@ async def get_high_risk_citizens(threshold: float = None):
     if threshold is None:
         threshold = settings.RISK_THRESHOLD_WATCHLIST
     
-    cypher_query = """
-    MATCH (c:Citizen)
-    WHERE c.risk_seed >= $threshold
-    OPTIONAL MATCH (c)-[:KNOWS]-(friend)-[:COMMITTED_CRIME]->()
-    WITH c, count(distinct friend) as criminal_contacts
-    RETURN c.id as id,
-           c.name as name,
-           c.risk_seed as risk_seed,
-           criminal_contacts as criminal_degree
-    ORDER BY c.risk_seed DESC
-    LIMIT 50
-    """
-    
-    results = await db_manager.query(cypher_query, {"threshold": threshold})
+    suspects = await citizen_service.get_high_risk_suspects(threshold)
     
     return {
         "threshold": threshold,
-        "count": len(results),
-        "citizens": [
-            {
-                "id": r['id'],
-                "name": r['name'],
-                "risk_seed": r['risk_seed'],
-                "criminal_contacts": r['criminal_degree']
-            }
-            for r in results
-        ]
+        "count": len(suspects),
+        "suspects": suspects
     }
 
-# ==================== Funciones auxiliares ====================
-
-def _encode_job(job: str | None) -> list[float]:
-    """Codifica trabajo a vector one-hot (mock simplificado)."""
-    jobs = ["Doctor", "Engineer", "Teacher", "Police", "Artist", 
-            "Driver", "Clerk", "Manager", "Scientist", "Other"]
-    if not job:
-        return [0.0] * len(jobs)
+@router.get("/{citizen_id}/history")
+async def get_prediction_history(
+    citizen_id: int,
+    limit: int = Query(20, ge=1, le=100, description="Máximo de registros")
+):
+    """
+    Obtiene historial completo de predicciones para un ciudadano.
+    Incluye análisis de tendencia de riesgo.
+    """
+    # Verificar que el ciudadano existe
+    citizen = await citizen_service.get_citizen(citizen_id)
+    if not citizen:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ciudadano #{citizen_id} no encontrado"
+        )
     
-    try:
-        idx = jobs.index(job)
-        vector = [0.0] * len(jobs)
-        vector[idx] = 1.0
-        return vector
-    except ValueError:
-        # Job desconocido → categoría "Other"
-        vector = [0.0] * len(jobs)
-        vector[-1] = 1.0
-        return vector
+    history = await prediction_service.get_prediction_history(citizen_id, limit)
+    
+    return {
+        "citizen_id": citizen_id,
+        "citizen_name": citizen.get("name"),
+        **history
+    }
 
-def _get_verdict_label(probability: float) -> str:
-    """Determina veredicto basándose en probabilidad."""
-    if probability >= settings.RISK_THRESHOLD_INTERVENE:
-        return "INTERVENE"
-    elif probability >= settings.RISK_THRESHOLD_WATCHLIST:
-        return "WATCHLIST"
-    return "SAFE"
+@router.get("/admin/interventions")
+async def get_active_interventions():
+    """
+    Obtiene todas las intervenciones activas (Bolas Rojas).
+    Dashboard para jefe de policía.
+    
+    ⚠️ ENDPOINT SENSIBLE - Debería requerir autenticación
+    """
+    interventions = await prediction_service.get_active_interventions()
+    
+    return {
+        "timestamp": datetime.now(),
+        "critical_alert": interventions["critical_count"] > 0,
+        **interventions
+    }
 
-async def _register_red_ball(citizen_id: int, probability: float, confidence: float):
+@router.get("/admin/statistics")
+async def get_prediction_statistics(
+    days: int = Query(7, ge=1, le=365, description="Período en días")
+):
     """
-    Registra una predicción de "Bola Roja" en Neo4j.
-    Se ejecuta en background para no bloquear la respuesta.
+    Estadísticas de predicciones: volumen, precisión, tendencias.
+    
+    ⚠️ ENDPOINT SENSIBLE - Debería requerir autenticación
     """
+    stats = await prediction_service.get_prediction_statistics(days)
+    
+    return {
+        "generated_at": datetime.now(),
+        **stats
+    }
+
+# ==================== ADMINISTRATIVE ENDPOINTS ====================
+
+@router.post("/{citizen_id}/resolve")
+async def resolve_intervention(citizen_id: int):
+    """
+    Marca una intervención Pre-Crime como resuelta.
+    
+    Se ejecuta cuando la acción está completada.
+    
+    ⚠️ ENDPOINT SENSIBLE - Requiere autenticación de oficial
+    """
+    citizen = await citizen_service.get_citizen(citizen_id)
+    if not citizen:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ciudadano #{citizen_id} no encontrado"
+        )
+    
+    success = await prediction_service.mark_intervention_resolved(citizen_id)
+    
+    if success:
+        logger.info(f"Intervención para #{citizen_id} marcada como RESUELTA")
+        return {
+            "citizen_id": citizen_id,
+            "status": "RESOLVED",
+            "timestamp": datetime.now()
+        }
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No hay intervención activa para este ciudadano"
+        )
+
+# ==================== HELPER FUNCTIONS ====================
+
+async def _background_register_prediction(
+    citizen_id: int,
+    probability: float,
+    verdict: str
+):
+    """Registra predicción en background (no bloquea respuesta)."""
     try:
-        query = """
-        MATCH (c:Citizen {id: $cid})
-        MERGE (c)-[r:RED_BALL_PREDICTED]->(c)
-        SET r.probability = $prob,
-            r.confidence = $conf,
-            r.timestamp = datetime(),
-            r.status = 'ACTIVE'
-        """
-        await db_manager.execute_write(query, {
-            "cid": citizen_id,
-            "prob": probability,
-            "conf": confidence
-        })
-        logger.info(f"🔴 Bola Roja registrada para ciudadano #{citizen_id}")
+        logger.info(f"📝 Registrando predicción en background: #{citizen_id}")
+        # Aquí iría la persistencia si no se hizo en el Service
     except Exception as e:
-        logger.error(f"Error registrando Bola Roja: {e}")
+        logger.error(f"Error en background task: {e}")
