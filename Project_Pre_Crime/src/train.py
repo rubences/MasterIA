@@ -1,6 +1,9 @@
+import os
 import torch
 import torch.nn.functional as F
 from models import CrimeGenerator, PoliceDiscriminator
+from dotenv import load_dotenv
+from feature_engineering import hydrate_graph_data
 # from connector import Neo4jConnector # Uncomment when using real DB
 
 def train_precrime_gan(data, epochs=50, device=None, lr_g=0.01, lr_d=0.01):
@@ -63,18 +66,25 @@ def train_precrime_gan(data, epochs=50, device=None, lr_g=0.01, lr_d=0.01):
 
 # --- EJECUCIÓN ---
 if __name__ == "__main__":
-    # 1. Crear datos Dummy para probar (Simulando ciudadanos y ubicaciones)
-    from torch_geometric.data import Data
-    
-    # 100 Nodos (Personas/Lugares), 16 características cada uno
-    x = torch.randn((100, 16), device=device)
-    # Conexiones aleatorias (Grafo social)
-    edge_index = torch.randint(0, 100, (2, 300), device=device)
-    
-    data = Data(x=x, edge_index=edge_index)
-    
-    print("Iniciando Sistema Pre-Crime...")
-    gen, disc = train_precrime_gan(data)
+    # Preparar entorno y flags
+    load_dotenv()
+    use_real = os.getenv("USE_REAL_DATA", "true").lower() == "true"
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    if use_real:
+        print("Iniciando Sistema Pre-Crime con datos reales (Neo4j)...")
+        data = hydrate_graph_data()
+    else:
+        # 1. Crear datos Dummy para probar (Simulando ciudadanos y ubicaciones)
+        from torch_geometric.data import Data
+        print("Iniciando Sistema Pre-Crime con datos simulados...")
+        # 100 Nodos (Personas/Lugares), 16 características cada uno
+        x = torch.randn((100, 16))
+        # Conexiones aleatorias (Grafo social)
+        edge_index = torch.randint(0, 100, (2, 300))
+        data = Data(x=x, edge_index=edge_index)
+
+    gen, disc = train_precrime_gan(data, device=device)
     
     # 2. Simular exportación a Neo4j (requiere base de datos activa)
     # db = Neo4jConnector("bolt://localhost:7687", "neo4j", "password")

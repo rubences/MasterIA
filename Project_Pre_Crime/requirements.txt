@@ -4,5 +4,6 @@ neo4j
 numpy
 scikit-learn
 python-dotenv
+pandas
 faker
 tqdm
