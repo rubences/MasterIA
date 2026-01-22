@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+logs/
+precrime.log
+data/precrime_graph.pt
+.DS_Store
+.vscode/
