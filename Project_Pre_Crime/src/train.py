@@ -3,10 +3,14 @@ import torch.nn.functional as F
 from models import CrimeGenerator, PoliceDiscriminator
 # from connector import Neo4jConnector # Uncomment when using real DB
 
-# Configuración del dispositivo (GPU si es posible, sino CPU)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-def train_precrime_gan(data, epochs=50):
+def train_precrime_gan(data, epochs=50, device=None, lr_g=0.01, lr_d=0.01):
+    # Configuración del dispositivo si no se proporciona
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    # Mover datos al dispositivo
+    data = data.to(device)
+    
     # Inicialización
     in_dim = data.num_features
     hidden_dim = 64
@@ -16,8 +20,8 @@ def train_precrime_gan(data, epochs=50):
     discriminator = PoliceDiscriminator(out_dim, hidden_dim, 1).to(device) # Salida 1 (Probabilidad)
 
     # Optimizadores separados
-    optimizer_G = torch.optim.Adam(generator.parameters(), lr=0.01)
-    optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=0.01)
+    optimizer_G = torch.optim.Adam(generator.parameters(), lr=lr_g)
+    optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr_d)
 
     # Simulación del Bucle
     for epoch in range(epochs):

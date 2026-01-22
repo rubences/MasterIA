@@ -1,0 +1,82 @@
+2026-01-22 15:46:18,662 - __main__ - INFO - ============================================================
+2026-01-22 15:46:18,662 - __main__ - INFO - INICIANDO SISTEMA DE PREDICCIÓN PRE-CRIME
+2026-01-22 15:46:18,662 - __main__ - INFO - ============================================================
+2026-01-22 15:46:18,662 - __main__ - INFO - Dispositivo: cpu
+2026-01-22 15:46:18,665 - __main__ - INFO - Configuración cargada: {'neo4j_uri': 'bolt://localhost:7687', 'neo4j_user': 'neo4j', 'neo4j_password': 'password', 'model_path': './models', 'data_path': './data', 'log_path': './logs', 'num_nodes': 100, 'num_edges': 300, 'num_features': 16, 'hidden_dim': 64, 'epochs': 100, 'batch_size': 32, 'learning_rate_g': 0.001, 'learning_rate_d': 0.001, 'export_to_neo4j': False}
+2026-01-22 15:46:18,665 - __main__ - INFO - 
+[PASO 1] Cargando datos del grafo...
+2026-01-22 15:46:18,682 - __main__ - INFO - Grafo creado: 100 nodos, 300 aristas
+2026-01-22 15:46:18,682 - __main__ - INFO - Características por nodo: 16
+2026-01-22 15:46:18,682 - __main__ - INFO - 
+[PASO 2] Entrenando modelo Pre-Crime (GAN)...
+2026-01-22 15:46:20,042 - __main__ - INFO - ✓ Modelo entrenado exitosamente
+2026-01-22 15:46:20,043 - __main__ - INFO - 
+[PASO 3] Guardando modelo...
+2026-01-22 15:46:20,049 - __main__ - INFO - ✓ Modelos guardados en models
+2026-01-22 15:46:20,049 - __main__ - INFO - 
+[PASO 4] Generando predicciones...
+2026-01-22 15:46:20,053 - __main__ - INFO - ✓ Predicciones generadas. Riesgo promedio: 0.5522
+2026-01-22 15:46:20,053 - __main__ - INFO - 
+============================================================
+2026-01-22 15:46:20,053 - __main__ - INFO - SISTEMA PRE-CRIME FINALIZADO
+2026-01-22 15:46:20,053 - __main__ - INFO - ============================================================
+2026-01-22 15:46:20,053 - __main__ - INFO - ✓ Ejecución exitosa
+2026-01-22 15:47:15,589 - __main__ - INFO - ============================================================
+2026-01-22 15:47:15,589 - __main__ - INFO - EVALUACIÓN DEL SISTEMA PRE-CRIME
+2026-01-22 15:47:15,589 - __main__ - INFO - ============================================================
+2026-01-22 15:47:15,589 - __main__ - INFO - 
+Cargando datos de prueba...
+2026-01-22 15:47:15,590 - __main__ - INFO - Cargando modelos entrenados...
+2026-01-22 15:47:15,686 - __main__ - INFO - ✓ Modelos cargados
+2026-01-22 15:47:15,686 - __main__ - INFO - 
+Evaluando modelo...
+2026-01-22 15:47:15,696 - __main__ - INFO - 
+============================================================
+2026-01-22 15:47:15,697 - __main__ - INFO - MÉTRICAS DE EVALUACIÓN
+2026-01-22 15:47:15,697 - __main__ - INFO - ============================================================
+2026-01-22 15:47:15,697 - __main__ - INFO -   mean_risk: 0.5370
+2026-01-22 15:47:15,697 - __main__ - INFO -   max_risk: 0.7212
+2026-01-22 15:47:15,697 - __main__ - INFO -   min_risk: 0.3974
+2026-01-22 15:47:15,697 - __main__ - INFO -   std_risk: 0.0437
+2026-01-22 15:47:15,697 - __main__ - INFO - ============================================================
+2026-01-22 15:50:58,167 - __main__ - INFO - ============================================================
+2026-01-22 15:50:58,167 - __main__ - INFO - INICIANDO SISTEMA DE PREDICCIÓN PRE-CRIME
+2026-01-22 15:50:58,167 - __main__ - INFO - ============================================================
+2026-01-22 15:50:58,168 - __main__ - INFO - Dispositivo: cpu
+2026-01-22 15:50:58,168 - __main__ - INFO - Configuración cargada: {'neo4j_uri': 'bolt://localhost:7687', 'neo4j_user': 'neo4j', 'neo4j_password': 'password', 'model_path': './models', 'data_path': './data', 'log_path': './logs', 'num_nodes': 100, 'num_edges': 300, 'num_features': 16, 'hidden_dim': 64, 'epochs': 100, 'batch_size': 32, 'learning_rate_g': 0.001, 'learning_rate_d': 0.001, 'export_to_neo4j': False}
+2026-01-22 15:50:58,168 - __main__ - INFO - 
+[PASO 1] Cargando datos del grafo...
+2026-01-22 15:50:58,169 - __main__ - INFO - Grafo creado: 100 nodos, 300 aristas
+2026-01-22 15:50:58,169 - __main__ - INFO - Características por nodo: 16
+2026-01-22 15:50:58,169 - __main__ - INFO - 
+[PASO 2] Entrenando modelo Pre-Crime (GAN)...
+2026-01-22 15:50:59,718 - __main__ - INFO - ✓ Modelo entrenado exitosamente
+2026-01-22 15:50:59,718 - __main__ - INFO - 
+[PASO 3] Guardando modelo...
+2026-01-22 15:50:59,726 - __main__ - INFO - ✓ Modelos guardados en models
+2026-01-22 15:50:59,726 - __main__ - INFO - 
+[PASO 4] Generando predicciones...
+2026-01-22 15:50:59,730 - __main__ - INFO - ✓ Predicciones generadas. Riesgo promedio: 0.3936
+2026-01-22 15:50:59,731 - __main__ - INFO - 
+============================================================
+2026-01-22 15:50:59,731 - __main__ - INFO - SISTEMA PRE-CRIME FINALIZADO
+2026-01-22 15:50:59,732 - __main__ - INFO - ============================================================
+2026-01-22 15:50:59,732 - __main__ - INFO - ✓ Ejecución exitosa
+2026-01-22 15:52:28,593 - __main__ - INFO - ============================================================
+2026-01-22 15:52:28,593 - __main__ - INFO - EVALUACIÓN DEL SISTEMA PRE-CRIME
+2026-01-22 15:52:28,593 - __main__ - INFO - ============================================================
+2026-01-22 15:52:28,594 - __main__ - INFO - 
+Cargando datos de prueba...
+2026-01-22 15:52:28,594 - __main__ - INFO - Cargando modelos entrenados...
+2026-01-22 15:52:28,696 - __main__ - INFO - ✓ Modelos cargados
+2026-01-22 15:52:28,696 - __main__ - INFO - 
+Evaluando modelo...
+2026-01-22 15:52:28,700 - __main__ - INFO - 
+============================================================
+2026-01-22 15:52:28,700 - __main__ - INFO - MÉTRICAS DE EVALUACIÓN
+2026-01-22 15:52:28,700 - __main__ - INFO - ============================================================
+2026-01-22 15:52:28,700 - __main__ - INFO -   mean_risk: 0.3814
+2026-01-22 15:52:28,700 - __main__ - INFO -   max_risk: 0.5767
+2026-01-22 15:52:28,700 - __main__ - INFO -   min_risk: 0.3036
+2026-01-22 15:52:28,700 - __main__ - INFO -   std_risk: 0.0520
+2026-01-22 15:52:28,700 - __main__ - INFO - ============================================================

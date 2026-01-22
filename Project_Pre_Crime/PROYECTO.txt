@@ -1,0 +1,235 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║                    🚨 SISTEMA DE PREDICCIÓN PRE-CRIME 🚨                    ║
+║                                                                              ║
+║                    Predicción de Crímenes con GNNs                           ║
+║                    Inspirado en "Minority Report"                            ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📊 DESCRIPCIÓN DEL PROYECTO
+═══════════════════════════════════════════════════════════════════════════════
+
+Sistema avanzado que utiliza Graph Neural Networks (GNNs) para predecir
+potenciales incidentes criminales en una ciudad, basándose en:
+
+  ✓ Estructura de grafos sociales
+  ✓ Patrones históricos de criminalidad
+  ✓ Características de personas y ubicaciones
+  ✓ Arquitectura GAN-like innovadora
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🏗️  ARQUITECTURA DEL SISTEMA
+═══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                                                          │
+│  CRIMINAL GENERATOR (GraphSAGE)                                         │
+│  ┌────────────────────────────────────────────────────────────────┐    │
+│  │ • Entrada: Características de nodos + estructura del grafo     │    │
+│  │ • 2 capas SAGEConv inductivas                                  │    │
+│  │ • Salida: Embeddings latentes (intenciones criminales)         │    │
+│  │ • Objetivo: Generar predicciones realistas de crimen           │    │
+│  └────────────────────────────────────────────────────────────────┘    │
+│                                     ↓                                    │
+│  POLICE DISCRIMINATOR (GAT - Attention)                                 │
+│  ┌────────────────────────────────────────────────────────────────┐    │
+│  │ • Entrada: Embeddings del generador + grafo                    │    │
+│  │ • 2 capas GAT con múltiples heads de atención                  │    │
+│  │ • Salida: Probabilidad de riesgo (0.0 - 1.0)                  │    │
+│  │ • Objetivo: Discriminar crimen real vs ruido                   │    │
+│  └────────────────────────────────────────────────────────────────┘    │
+│                                     ↓                                    │
+│  PREDICCIONES                                                           │
+│  ┌────────────────────────────────────────────────────────────────┐    │
+│  │ Lista de personas/ubicaciones con puntuación de riesgo          │    │
+│  │ Exportables a Neo4j como relaciones WILL_COMMIT (ROJO)         │    │
+│  └────────────────────────────────────────────────────────────────┘    │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📁 ESTRUCTURA DE CARPETAS
+═══════════════════════════════════════════════════════════════════════════════
+
+Project_Pre_Crime/
+│
+├── 📄 src/                         # Código fuente principal
+│   ├── main.py                     # ⭐ Punto de entrada (entrenar + predecir)
+│   ├── models.py                   # Definición de modelos
+│   ├── train.py                    # Loop de entrenamiento GAN
+│   ├── evaluate.py                 # ⭐ Evaluar modelo entrenado
+│   ├── connector.py                # Conexión a Neo4j
+│   └── utils.py                    # Funciones auxiliares
+│
+├── 📂 scripts/
+│   └── setup_db.cypher             # Inicializar base de datos Neo4j
+│
+├── 📂 models/                      # Modelos entrenados (auto-generado)
+│   ├── generator.pth
+│   └── discriminator.pth
+│
+├── 📂 data/                        # Datos (auto-generado)
+├── 📂 logs/                        # Logs de ejecución (auto-generado)
+├── 📂 .vscode/                     # Configuración de VS Code
+│   ├── settings.json
+│   └── launch.json
+│
+├── 🔧 .env                         # Variables de entorno
+├── 📦 requirements.txt             # Dependencias Python
+├── 📚 README.md                    # Documentación completa
+├── 🚀 QUICKSTART.md               # Guía de inicio rápido
+├── 📋 PROYECTO.txt                # Este archivo
+├── 🎯 run.sh                       # Script de ejecución automática
+└── 🔌 activate.sh                 # Script de activación de venv
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚀 EJECUCIÓN RÁPIDA
+═══════════════════════════════════════════════════════════════════════════════
+
+1️⃣  Opción Automática (Recomendado):
+   $ ./run.sh
+   → Te guía a través de un menú interactivo
+
+2️⃣  Manual - Entrenar modelo:
+   $ source venv/bin/activate
+   $ python src/main.py
+
+3️⃣  Manual - Evaluar modelo:
+   $ source venv/bin/activate
+   $ python src/evaluate.py
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⚙️  CONFIGURACIÓN
+═══════════════════════════════════════════════════════════════════════════════
+
+Edita el archivo .env para personalizar:
+
+  GRAFO:
+    - NUM_NODES: Número de nodos (ciudadanos)
+    - NUM_EDGES: Conexiones entre ciudadanos
+    - NUM_FEATURES: Características por persona
+    - HIDDEN_DIM: Dimensión de capas internas
+
+  ENTRENAMIENTO:
+    - EPOCHS: 100 (aumenta para mejor precisión)
+    - LEARNING_RATE_G: Tasa del generador
+    - LEARNING_RATE_D: Tasa del discriminador
+    - BATCH_SIZE: Tamaño de lotes
+
+  NEO4J:
+    - NEO4J_URI: Dirección de la base de datos
+    - NEO4J_USER: Usuario
+    - NEO4J_PASSWORD: Contraseña
+    - EXPORT_TO_NEO4J: true/false
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📊 SALIDA ESPERADA
+═══════════════════════════════════════════════════════════════════════════════
+
+$ python src/main.py
+
+============================================================
+INICIANDO SISTEMA DE PREDICCIÓN PRE-CRIME
+============================================================
+Dispositivo: cuda
+Configuración cargada: {...}
+
+[PASO 1] Cargando datos del grafo...
+Grafo creado: 100 nodos, 300 aristas
+
+[PASO 2] Entrenando modelo Pre-Crime (GAN)...
+Epoch 0 | Loss Policía: 1.5457 | Loss Criminal: 0.6410
+Epoch 10 | Loss Policía: 1.5971 | Loss Criminal: 0.5842
+...
+Epoch 90 | Loss Policía: 1.6941 | Loss Criminal: 0.7722
+
+✓ Modelo entrenado exitosamente
+
+[PASO 3] Guardando modelo...
+✓ Modelos guardados en models
+
+[PASO 4] Generando predicciones...
+✓ Predicciones generadas. Riesgo promedio: 0.5522
+
+============================================================
+SISTEMA PRE-CRIME FINALIZADO
+============================================================
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📦 DEPENDENCIAS INSTALADAS
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ torch                 2.10.0      (Deep Learning Framework)
+✓ torch-geometric       2.7.0       (Graph Neural Networks)
+✓ neo4j                 6.1.0       (Graph Database)
+✓ numpy                 2.4.1       (Numerical Computing)
+✓ scikit-learn          1.8.0       (ML Utilities)
+✓ python-dotenv         1.2.1       (Environment Variables)
+
+Soporte CUDA: Detectado automáticamente si está disponible
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🔗 INTEGRACIÓN NEO4J
+═══════════════════════════════════════════════════════════════════════════════
+
+NODOS:
+  • Citizen: Personas con propiedades (id, name, risk_base, status)
+  • Location: Ubicaciones (id, type, crime_rate)
+
+RELACIONES:
+  • LIVES_IN: Ciudadano vive en ubicación
+  • VISITS: Ciudadano visita ubicación
+  • WILL_COMMIT: Predicción de crimen (relación ROJA añadida por el modelo)
+
+Para usar Neo4j real:
+  1. Instala Neo4j localmente
+  2. Ejecuta: cypher-shell < scripts/setup_db.cypher
+  3. Cambia en .env: EXPORT_TO_NEO4J=true
+  4. Ejecuta: python src/main.py
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📚 DOCUMENTACIÓN ADICIONAL
+═══════════════════════════════════════════════════════════════════════════════
+
+  • README.md     → Documentación completa del proyecto
+  • QUICKSTART.md → Guía rápida de inicio
+  • precrime.log  → Logs detallados de ejecución
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 PRÓXIMOS PASOS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Ejecuta: ./run.sh
+2. Lee: README.md
+3. Modifica: .env (parámetros)
+4. Experimenta: Aumenta EPOCHS, NUM_NODES, etc.
+5. Integra: Conecta con Neo4j real
+
+═══════════════════════════════════════════════════════════════════════════════
+
+⚠️  CONSIDERACIONES ÉTICAS
+═══════════════════════════════════════════════════════════════════════════════
+
+Este es un PROYECTO EDUCATIVO basado en ciencia ficción (Minority Report).
+
+ADVERTENCIA: Los sistemas reales de predicción de crímenes pueden perpetuar
+sesgos y discriminación. Usar con responsabilidad en aplicaciones reales.
+
+═══════════════════════════════════════════════════════════════════════════════
+
+👨‍💻 Proyecto: MasterIA - Pre-Crime System
+   Basado en: Minority Report (Spielberg, 2002)
+   Versión: 1.0
+   Estado: ✓ Funcional
+
+═══════════════════════════════════════════════════════════════════════════════
